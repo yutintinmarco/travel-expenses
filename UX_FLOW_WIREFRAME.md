@@ -2,7 +2,7 @@
 
 ## A. Home / Trip Dashboard
 - Header: Trip name, members, base currency.
-- Primary CTA: `+ Add Expense` (sticky floating button).
+- Primary CTA: `+ Add Expense` (sticky floating button, always visible on mobile).
 - Secondary CTA: `Scan Receipt`.
 - Cards:
   - Total spend
@@ -21,10 +21,12 @@
 4. Select participants (default all).
 5. Save.
 
-### Shortcuts
+### Shortcuts (must be above fold)
 - `Duplicate last`
 - `Split equally`
 - `Split custom`
+- `Last payer`
+- `Last currency`
 
 ## C. Scan Receipt Flow
 1. Tap `Scan Receipt`.
@@ -74,3 +76,28 @@
 - Member management.
 - Export CSV/PDF.
 - Danger zone: archive trip.
+
+
+## H. Hotel Split (Room/Night)
+- Split mode selector:
+  - Equal by participants
+  - By room
+  - By night
+- By room flow:
+  1. Add room blocks (Room A/B/...).
+  2. Assign members per room.
+  3. Enter subtotal per room.
+  4. Choose tax/service fee allocation rule (equal or proportional).
+- By night flow:
+  1. Select check-in/check-out dates.
+  2. Assign nights per member.
+  3. Auto-calculate per-member share.
+- Optional extras can be assigned to specific members only.
+
+## I. OCR Failure Fallback
+- If scan confidence is low, show fallback sheet with:
+  - receipt image preview pinned top
+  - amount/date/currency fields first
+  - retry scan button
+  - save manual entry CTA
+- Target: manual correction + save within 20 seconds median.
