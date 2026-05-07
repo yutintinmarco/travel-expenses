@@ -174,3 +174,35 @@ button {
   font-size: 14px;
   margin-bottom: 12px;
 }
+
+
+.member-add-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.member-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f2f2f2;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.member-chip button {
+  background: transparent;
+  color: #b42318;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+}
