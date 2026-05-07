@@ -50,6 +50,7 @@ const addMemberBtn = document.getElementById("addMemberBtn");
 let currentUser = null;
 let expenses = [];
 let editingExpenseId = null;
+let stopTripListener = null;
 
 function renderMemberManager() {
   memberList.innerHTML = members
@@ -145,6 +146,30 @@ function enterEditMode(expenseId) {
 
 function getTripDocRef() { return doc(db, "trips", tripId); }
 function getExpensesCollection() { return collection(db, "trips", tripId, "expenses"); }
+
+
+function startTripListener() {
+  if (stopTripListener) stopTripListener();
+
+  stopTripListener = onSnapshot(getTripDocRef(), snapshot => {
+    if (!snapshot.exists()) return;
+    const data = snapshot.data();
+    if (!Array.isArray(data.members) || data.members.length === 0) return;
+
+    const changed = JSON.stringify(data.members) !== JSON.stringify(members);
+    if (!changed) return;
+
+    const previousPayer = paidByInput.value;
+    members = data.members;
+    initMembers();
+
+    if (members.includes(previousPayer)) {
+      paidByInput.value = previousPayer;
+    }
+  }, error => {
+    console.error(error);
+  });
+}
 
 async function ensureTripMembers() {
   const tripDoc = await getDoc(getTripDocRef());
@@ -351,5 +376,6 @@ onAuthStateChanged(auth, async user => {
   syncStatus.textContent = "Connected";
   await ensureTripMembers();
   initMembers();
+  startTripListener();
   listenToExpenses();
 });
