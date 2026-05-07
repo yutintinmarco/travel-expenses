@@ -174,10 +174,17 @@ async function addMember() {
   const exists = members.some(member => member.toLowerCase() === name.toLowerCase());
   if (exists) return alert("成員名稱已存在。");
 
-  members.push(name);
-  await setDoc(getTripDocRef(), { members }, { merge: true });
-  initMembers();
-  memberNameInput.value = "";
+  const nextMembers = [...members, name];
+
+  try {
+    await setDoc(getTripDocRef(), { members: nextMembers }, { merge: true });
+    members = nextMembers;
+    initMembers();
+    memberNameInput.value = "";
+  } catch (error) {
+    console.error(error);
+    alert("新增成員失敗，請稍後再試。");
+  }
 }
 
 async function removeMember(name) {
@@ -188,9 +195,16 @@ async function removeMember(name) {
   );
   if (used) return alert("此成員已出現在歷史支出，暫時不能移除。");
 
-  members = members.filter(member => member !== name);
-  await setDoc(getTripDocRef(), { members }, { merge: true });
-  initMembers();
+  const nextMembers = members.filter(member => member !== name);
+
+  try {
+    await setDoc(getTripDocRef(), { members: nextMembers }, { merge: true });
+    members = nextMembers;
+    initMembers();
+  } catch (error) {
+    console.error(error);
+    alert("移除成員失敗，請稍後再試。");
+  }
 }
 
 async function saveExpense(event) {
