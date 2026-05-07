@@ -10,6 +10,7 @@ import {
   getFirestore,
   collection,
   addDoc,
+  updateDoc,
   deleteDoc,
   doc,
   onSnapshot,
@@ -38,9 +39,12 @@ const noteInput = document.getElementById("note");
 const syncStatus = document.getElementById("syncStatus");
 const expenseList = document.getElementById("expenseList");
 const summary = document.getElementById("summary");
+const submitBtn = document.getElementById("submitBtn");
+const cancelEditBtn = document.getElementById("cancelEditBtn");
 
 let currentUser = null;
 let expenses = [];
+let editingExpenseId = null;
 
 function initMembers() {
   paidByInput.innerHTML = members
@@ -67,11 +71,73 @@ function getSelectedParticipants() {
     .map(input => input.value);
 }
 
+function resetExpenseForm() {
+  form.reset();
+  setToday();
+
+  Array.from(sharedByGroup.querySelectorAll("input")).forEach(input => {
+    input.checked = true;
+  });
+
+  editingExpenseId = null;
+  submitBtn.textContent = "新增";
+  cancelEditBtn.classList.add("hidden");
+
+  const existingNotice = document.getElementById("editingNotice");
+  if (existingNotice) {
+    existingNotice.remove();
+  }
+}
+
+function enterEditMode(expenseId) {
+  const expense = expenses.find(item => item.id === expenseId);
+
+  if (!expense) {
+    alert("搵唔到呢筆支出，可能已經被刪除。");
+    return;
+  }
+
+  editingExpenseId = expense.id;
+
+  dateInput.value = expense.date || "";
+  titleInput.value = expense.title || "";
+  amountInput.value = expense.amount || "";
+  currencyInput.value = expense.currency || "HKD";
+  paidByInput.value = expense.paidBy || members[0];
+  categoryInput.value = expense.category || "Other";
+  noteInput.value = expense.note || "";
+
+  Array.from(sharedByGroup.querySelectorAll("input")).forEach(input => {
+    input.checked = Array.isArray(expense.sharedBy)
+      ? expense.sharedBy.includes(input.value)
+      : false;
+  });
+
+  submitBtn.textContent = "儲存修改";
+  cancelEditBtn.classList.remove("hidden");
+
+  const existingNotice = document.getElementById("editingNotice");
+  if (existingNotice) {
+    existingNotice.remove();
+  }
+
+  const notice = document.createElement("div");
+  notice.id = "editingNotice";
+  notice.className = "editing-notice";
+  notice.textContent = `正在編輯：${expense.title}`;
+  form.prepend(notice);
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+  });
+}
+
 function getExpensesCollection() {
   return collection(db, "trips", tripId, "expenses");
 }
 
-async function addExpense(event) {
+async function saveExpense(event) {
   event.preventDefault();
 
   const participants = getSelectedParticipants();
@@ -88,7 +154,7 @@ async function addExpense(event) {
     return;
   }
 
-  await addDoc(getExpensesCollection(), {
+  const payload = {
     date: dateInput.value,
     title: titleInput.value.trim(),
     amount,
@@ -97,22 +163,36 @@ async function addExpense(event) {
     sharedBy: participants,
     category: categoryInput.value,
     note: noteInput.value.trim(),
-    createdBy: currentUser ? currentUser.uid : null,
-    createdAt: serverTimestamp()
-  });
+    updatedBy: currentUser ? currentUser.uid : null,
+    updatedAt: serverTimestamp()
+  };
 
-  form.reset();
-  setToday();
+  if (!payload.title) {
+    alert("請輸入項目名稱。");
+    return;
+  }
 
-  Array.from(sharedByGroup.querySelectorAll("input")).forEach(input => {
-    input.checked = true;
-  });
+  if (editingExpenseId) {
+    await updateDoc(doc(db, "trips", tripId, "expenses", editingExpenseId), payload);
+  } else {
+    await addDoc(getExpensesCollection(), {
+      ...payload,
+      createdBy: currentUser ? currentUser.uid : null,
+      createdAt: serverTimestamp()
+    });
+  }
+
+  resetExpenseForm();
 }
 
 async function removeExpense(expenseId) {
   const confirmed = confirm("確定刪除呢筆支出？");
 
   if (!confirmed) return;
+
+  if (editingExpenseId === expenseId) {
+    resetExpenseForm();
+  }
 
   await deleteDoc(doc(db, "trips", tripId, "expenses", expenseId));
 }
@@ -127,7 +207,7 @@ function renderExpenses() {
     .map(expense => `
       <div class="expense-item">
         <div class="expense-title">
-          ${expense.title} · ${expense.currency} ${expense.amount.toFixed(2)}
+          ${expense.title} · ${expense.currency} ${Number(expense.amount).toFixed(2)}
         </div>
         <div class="expense-meta">
           ${expense.date} · Paid by ${expense.paidBy} · Shared by ${expense.sharedBy.join(", ")}
@@ -135,10 +215,15 @@ function renderExpenses() {
         <div class="expense-meta">
           ${expense.category}${expense.note ? ` · ${expense.note}` : ""}
         </div>
+        <button class="edit-btn" data-edit-id="${expense.id}">Edit</button>
         <button class="delete-btn" data-delete-id="${expense.id}">Delete</button>
       </div>
     `)
     .join("");
+
+  expenseList.querySelectorAll("[data-edit-id]").forEach(button => {
+    button.addEventListener("click", () => enterEditMode(button.dataset.editId));
+  });
 
   expenseList.querySelectorAll("[data-delete-id]").forEach(button => {
     button.addEventListener("click", () => removeExpense(button.dataset.deleteId));
@@ -158,9 +243,9 @@ function calculateSummary() {
       net[expense.paidBy] = 0;
     }
 
-    net[expense.paidBy] += expense.amount;
+    net[expense.paidBy] += Number(expense.amount);
 
-    const shareAmount = expense.amount / expense.sharedBy.length;
+    const shareAmount = Number(expense.amount) / expense.sharedBy.length;
 
     expense.sharedBy.forEach(member => {
       if (!net.hasOwnProperty(member)) {
@@ -277,7 +362,11 @@ function listenToExpenses() {
 initMembers();
 setToday();
 
-form.addEventListener("submit", addExpense);
+form.addEventListener("submit", saveExpense);
+
+cancelEditBtn.addEventListener("click", () => {
+  resetExpenseForm();
+});
 
 signInAnonymously(auth).catch(error => {
   console.error(error);
